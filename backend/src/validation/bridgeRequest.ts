@@ -8,15 +8,15 @@ const bridgeRequestSchema = z
       .string()
       .regex(addressRegex, "Source user address must be a valid blockchain address")
       .transform((value) => ethers.getAddress(value)),
-    sourceChainName: z.string().min(1, "Source chain name is required"),
+    sourceChainId: z.number().positive("Source chain ID must be a positive number"),
     destinationUserAddress: z
       .string()
       .regex(addressRegex, "Destination user address must be a valid blockchain address")
       .transform((value) => ethers.getAddress(value)),
-    destinationChainName: z.string().min(1, "Destination chain name is required"),
+    destinationChainId: z.number().positive("Destination chain ID must be a positive number"),
     amount: z.number().positive("Amount must be a positive number"),
   })
-  .refine((data) => data.sourceChainName !== data.destinationChainName, {
+  .refine((data) => data.sourceChainId !== data.destinationChainId, {
     message: "Source and destination chains must be different",
   });
 

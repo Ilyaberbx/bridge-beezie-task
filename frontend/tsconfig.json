@@ -22,11 +22,20 @@
       "@/*": ["./*"]
     }
   },
-  "references": [
-    {
-      "path": "../backend/tsconfig.json"
-    }
+
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts",
+    "../shared/**/*.ts",
+    "../backend/src/validation/addressRegex.ts",
+    "../backend/src/validation/usdcAddressesConfig.ts",
+    "../backend/src/abstractions/iusdcAddressService.ts",
+    "../backend/src/services/usdcAddressService.ts",
+    "../backend/src/configs/usdcAddressesConfig.ts"
   ],
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts", "**/*.mts"],
   "exclude": ["node_modules"]
 }

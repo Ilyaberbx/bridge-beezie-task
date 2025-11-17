@@ -13,6 +13,18 @@
     "rootDir": "./src",
     "declaration": true
   },
-  "include": ["src/**/*"],
+  "references": [
+    {
+      "path": "../shared/tsconfig.json"
+    }
+  ],
+  "include": [
+    "src/**/*",
+    "src/configs/usdcAddressesConfig.ts",
+    "src/abstractions/iusdcAddressService.ts",
+    "src/services/usdcAddressService.ts",
+    "src/validation/usdcAddressesConfig.ts",
+    "src/validation/addressRegex.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,19 +1,19 @@
 import { IUsdcAddressService } from "../abstractions/iusdcAddressService";
 
 export class UsdcAddressService implements IUsdcAddressService {
-  private usdcAddresses: Map<string, string>;
+  private usdcAddresses: Map<number, string>;
 
-  constructor(config: { chainName: string; address: string }[]) {
-    this.usdcAddresses = new Map<string, string>();
+  constructor(config: { chainId: number; address: string }[]) {
+    this.usdcAddresses = new Map<number, string>();
     for (const usdcAddress of config) {
-      this.usdcAddresses.set(usdcAddress.chainName, usdcAddress.address);
+      this.usdcAddresses.set(usdcAddress.chainId, usdcAddress.address);
     }
   }
 
-  public getUsdcAddress(chainName: string): string {
-    const usdcAddress = this.usdcAddresses.get(chainName);
+  public getUsdcAddress(chainId: number): string {
+    const usdcAddress = this.usdcAddresses.get(chainId);
     if (usdcAddress === undefined) {
-      throw new Error("USDC address not found for chain name: " + chainName);
+      throw new Error("USDC address not found for chain ID: " + chainId);
     }
     return usdcAddress;
   }

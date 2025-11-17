@@ -4,9 +4,9 @@ import { IBlockchainProviderService } from "../abstractions/iblockchainProviderS
 export class GasEstimationService implements IGasEstimationService {
   constructor(private readonly blockchainProviderService: IBlockchainProviderService) {}
 
-  async hasEnoughNativeTokensToPayForGas(chainName: string, estimatedGas: bigint): Promise<boolean> {
-    const provider = this.blockchainProviderService.getProvider(chainName);
-    const wallet = this.blockchainProviderService.getWallet(chainName);
+  async hasEnoughNativeTokensToPayForGas(chainId: number, estimatedGas: bigint): Promise<boolean> {
+    const provider = this.blockchainProviderService.getProvider(chainId);
+    const wallet = this.blockchainProviderService.getWallet(chainId);
     const balanceInWei = await provider.getBalance(wallet.address);
     const feeData = await provider.getFeeData();
     const gasPrice = feeData.gasPrice ?? BigInt(0);

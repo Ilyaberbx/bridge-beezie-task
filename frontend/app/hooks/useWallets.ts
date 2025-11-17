@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { BrowserProvider, Signer } from "ethers";
+import { BrowserProvider, ethers, Signer } from "ethers";
 import { CHAIN_IDS, isSupportedChain, SupportedChainId } from "../lib/configs";
+import { Erc20Abi__factory } from "../types/factories/Erc20Abi__factory";
+import { client } from "../lib/client";
 
 type WalletState = {
   address: string;
   chainId: SupportedChainId;
   signer: Signer;
+  usdcAmount: string;
 } | null;
 
 export function useWallets() {
@@ -53,7 +56,22 @@ export function useWallets() {
       const newProvider = new BrowserProvider(window.ethereum);
       const signer = await newProvider.getSigner();
       const address = await signer.getAddress();
-      return { address, chainId: expectedChainId, signer };
+      const usdcAddressResponse = await client.api.usdcAddress.$get({
+        query: {
+          chainId: expectedChainId.toString(),
+        },
+      });
+
+      const usdcAddressData = await usdcAddressResponse.json();
+      if (usdcAddressData.status !== "success" || !("data" in usdcAddressData)) {
+        throw new Error("Failed to fetch USDC address");
+      }
+      const usdcAddress = usdcAddressData.data;
+      const usdcContract = Erc20Abi__factory.connect(usdcAddress, signer);
+      const usdcAmount = await usdcContract.balanceOf(address);
+      const formattedUsdcAmount = ethers.formatUnits(usdcAmount, 6);
+
+      return { address, chainId: expectedChainId, signer, usdcAmount: formattedUsdcAmount };
     }
 
     if (!isSupportedChain(currentChainId)) {
@@ -62,8 +80,22 @@ export function useWallets() {
 
     const signer = await provider.getSigner();
     const address = await signer.getAddress();
+    const usdcAddressResponse = await client.api.usdcAddress.$get({
+      query: {
+        chainId: currentChainId.toString(),
+      },
+    });
 
-    return { address, chainId: currentChainId, signer };
+    const usdcAddressData = await usdcAddressResponse.json();
+    if (usdcAddressData.status !== "success" || !("data" in usdcAddressData)) {
+      throw new Error("Failed to fetch USDC address");
+    }
+    const usdcAddress = usdcAddressData.data;
+    const usdcContract = Erc20Abi__factory.connect(usdcAddress, signer);
+    const usdcAmount = await usdcContract.balanceOf(address);
+    const formattedUsdcAmount = ethers.formatUnits(usdcAmount, 6);
+
+    return { address, chainId: currentChainId, signer, usdcAmount: formattedUsdcAmount };
   };
 
   const connectSourceWallet = useCallback(async (chainId: SupportedChainId) => {
@@ -135,16 +167,30 @@ export function useWallets() {
         const newAddress = await signer.getAddress();
         const network = await provider.getNetwork();
         const chainId = Number(network.chainId);
+        const usdcAddressResponse = await client.api.usdcAddress.$get({
+          query: {
+            chainId: chainId.toString(),
+          },
+        });
+
+        const usdcAddressData = await usdcAddressResponse.json();
+        if (usdcAddressData.status !== "success" || !("data" in usdcAddressData)) {
+          throw new Error("Failed to fetch USDC address");
+        }
+        const usdcAddress = usdcAddressData.data;
+        const usdcContract = Erc20Abi__factory.connect(usdcAddress, signer);
+        const usdcAmount = await usdcContract.balanceOf(newAddress);
+        const formattedUsdcAmount = ethers.formatUnits(usdcAmount, 6);
 
         if (sourceWallet && isSupportedChain(chainId)) {
           if (chainId === sourceWallet.chainId) {
-            setSourceWallet({ address: newAddress, chainId, signer });
+            setSourceWallet({ address: newAddress, chainId, signer, usdcAmount: formattedUsdcAmount });
           }
         }
 
         if (destinationWallet && isSupportedChain(chainId)) {
           if (chainId === destinationWallet.chainId) {
-            setDestinationWallet({ address: newAddress, chainId, signer });
+            setDestinationWallet({ address: newAddress, chainId, signer, usdcAmount: formattedUsdcAmount });
           }
         }
       } catch (error) {
@@ -172,3 +218,5 @@ export function useWallets() {
     isConnecting,
   };
 }
+
+export type UseWalletsReturn = ReturnType<typeof useWallets>;

@@ -16,7 +16,7 @@ export class BridgeController {
   }
 
   private generateOperationKey(requestBody: z.infer<typeof bridgeRequestSchema>): string {
-    return `${requestBody.sourceUserAddress}-${requestBody.sourceChainName}-${requestBody.destinationUserAddress}-${requestBody.destinationChainName}-${requestBody.amount}`;
+    return `${requestBody.sourceUserAddress}-${requestBody.sourceChainId}-${requestBody.destinationUserAddress}-${requestBody.destinationChainId}-${requestBody.amount}`;
   }
 
   private async processBridge(validatedRequestBody: z.infer<typeof bridgeRequestSchema>): Promise<SuccessResponse | ErrorResponse> {
@@ -67,11 +67,11 @@ export class BridgeController {
   }
 
   private async setupBridgeContext(validatedRequestBody: z.infer<typeof bridgeRequestSchema>): Promise<BridgeContext> {
-    const sourceWallet = services.blockchainProviderService.getWallet(validatedRequestBody.sourceChainName);
-    const destinationWallet = services.blockchainProviderService.getWallet(validatedRequestBody.destinationChainName);
+    const sourceWallet = services.blockchainProviderService.getWallet(validatedRequestBody.sourceChainId);
+    const destinationWallet = services.blockchainProviderService.getWallet(validatedRequestBody.destinationChainId);
 
-    const sourceUsdcAddress = services.usdcAddressService.getUsdcAddress(validatedRequestBody.sourceChainName);
-    const destinationUsdcAddress = services.usdcAddressService.getUsdcAddress(validatedRequestBody.destinationChainName);
+    const sourceUsdcAddress = services.usdcAddressService.getUsdcAddress(validatedRequestBody.sourceChainId);
+    const destinationUsdcAddress = services.usdcAddressService.getUsdcAddress(validatedRequestBody.destinationChainId);
 
     const sourceUsdc = Erc20Abi__factory.connect(sourceUsdcAddress, sourceWallet);
     const destinationUsdc = Erc20Abi__factory.connect(destinationUsdcAddress, destinationWallet);
@@ -136,7 +136,7 @@ export class BridgeController {
     );
 
     const hasEnoughNativeTokenOnSource = await services.gasEstimationService.hasEnoughNativeTokensToPayForGas(
-      validatedRequestBody.sourceChainName,
+      validatedRequestBody.sourceChainId,
       sourceEstimatedGas
     );
 
@@ -153,7 +153,7 @@ export class BridgeController {
     );
 
     const hasEnoughNativeTokenOnDestination = await services.gasEstimationService.hasEnoughNativeTokensToPayForGas(
-      validatedRequestBody.destinationChainName,
+      validatedRequestBody.destinationChainId,
       destinationEstimatedGas
     );
 
@@ -242,10 +242,10 @@ export class BridgeController {
   ): NewBridgingLog {
     return {
       sourceTxHash: sourceReceipt.hash,
-      sourceTxExplorerUrl: `${services.blockchainProviderService.getExplorerUrl(validatedRequestBody.sourceChainName)}/tx/${sourceReceipt.hash}`,
+      sourceTxExplorerUrl: `${services.blockchainProviderService.getExplorerUrl(validatedRequestBody.sourceChainId)}/tx/${sourceReceipt.hash}`,
       sourceUserAddress: validatedRequestBody.sourceUserAddress,
       destinationTxHash: destinationReceipt.hash,
-      destinationTxExplorerUrl: `${services.blockchainProviderService.getExplorerUrl(validatedRequestBody.destinationChainName)}/tx/${
+      destinationTxExplorerUrl: `${services.blockchainProviderService.getExplorerUrl(validatedRequestBody.destinationChainId)}/tx/${
         destinationReceipt.hash
       }`,
       destinationUserAddress: validatedRequestBody.destinationUserAddress,

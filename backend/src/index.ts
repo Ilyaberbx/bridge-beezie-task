@@ -5,6 +5,7 @@ import { cors } from "hono/cors";
 import bridge from "./routes/bridge";
 import logs from "./routes/logs";
 import { serve } from "@hono/node-server";
+import usdcAddress from "./routes/usdcAddress";
 
 const app = new Hono();
 
@@ -16,7 +17,7 @@ app.use(
   })
 );
 
-const routes = app.route("api/bridge", bridge).route("api/logs", logs);
+const routes = app.route("api/bridge", bridge).route("api/logs", logs).route("api/usdcAddress", usdcAddress);
 
 console.log(`Starting server on port ${3001}`);
 
