@@ -1,6 +1,6 @@
 import { IBridgingLogsRepository } from "../abstractions/ibridgingLogsRepository";
 import { IBridgingLogsService } from "../abstractions/ibridgingLogsService";
-import { BridgingLog, NewBridgingLog } from "../schema/bridgingLogs.schema";
+import { BridgingLog, NewBridgingLog } from "../database/bridgingLogs.schema";
 
 export class BridgingLogsService implements IBridgingLogsService {
   constructor(private readonly bridgingLogsRepository: IBridgingLogsRepository) {

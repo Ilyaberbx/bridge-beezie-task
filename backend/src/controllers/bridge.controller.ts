@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 import { Erc20Abi__factory } from "../types/factories/Erc20Abi__factory";
 import { bridgeRequestSchema } from "../validation/bridgeRequest";
 import { services } from "../services";
-import { NewBridgingLog } from "../schema/bridgingLogs.schema";
+import { NewBridgingLog } from "../database/bridgingLogs.schema";
 import { BridgeContext, ErrorResponse, SuccessResponse, TransferResult } from "../dto/bridge.dto";
 
 export class BridgeController {

@@ -1,6 +1,6 @@
 import { desc, eq, and } from "drizzle-orm";
 import { IBridgingLogsRepository } from "../abstractions/ibridgingLogsRepository";
-import { BridgingLog, bridgingLogs, insertBridgingLogSchema, NewBridgingLog, selectBridgingLogSchema } from "../schema/bridgingLogs.schema";
+import { BridgingLog, bridgingLogs, insertBridgingLogSchema, NewBridgingLog, selectBridgingLogSchema } from "../database/bridgingLogs.schema";
 import { MySql2Database } from "drizzle-orm/mysql2";
 
 export class BridgingLogsRepository implements IBridgingLogsRepository {
