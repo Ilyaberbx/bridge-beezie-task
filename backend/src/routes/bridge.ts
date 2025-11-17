@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { bridgeRequestSchema } from "../validation/bridge";
+import { bridgeRequestSchema } from "../validation/bridgeRequest";
 import { services } from "../services";
 import { Erc20Abi__factory } from "../types/factories/Erc20Abi__factory";
 import { ethers } from "ethers";
@@ -8,7 +8,7 @@ import { NewBridgingLog } from "../schema/bridgingLogs.schema";
 
 const app = new Hono();
 
-app.post("/transfer", async (context) => {
+app.post("/", async (context) => {
   try {
     const body = await context.req.json();
     const validatedData = bridgeRequestSchema.parse(body);

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { desc, eq, and } from "drizzle-orm";
 import { IBridgingLogsRepository } from "../abstractions/ibridgingLogsRepository";
 import { BridgingLog, bridgingLogs, insertBridgingLogSchema, NewBridgingLog, selectBridgingLogSchema } from "../schema/bridgingLogs.schema";
 import { MySql2Database } from "drizzle-orm/mysql2";
@@ -10,12 +10,16 @@ export class BridgingLogsRepository implements IBridgingLogsRepository {
     const validatedBridgingLog = insertBridgingLogSchema.parse(bridgingLog);
     await this.db.insert(bridgingLogs).values(validatedBridgingLog);
   }
-  async getBySourceUserAddress(sourceUserAddress: string): Promise<BridgingLog[]> {
-    const rows = await this.db.select().from(bridgingLogs).where(eq(bridgingLogs.sourceUserAddress, sourceUserAddress));
-    return rows.map((row) => selectBridgingLogSchema.parse(row));
-  }
-  async getByDestinationUserAddress(destinationUserAddress: string): Promise<BridgingLog[]> {
-    const rows = await this.db.select().from(bridgingLogs).where(eq(bridgingLogs.destinationUserAddress, destinationUserAddress));
+
+  async getByUserAddresses(sourceUserAddress: string, destinationUserAddress: string, limit: number, offset: number): Promise<BridgingLog[]> {
+    const rows = await this.db
+      .select()
+      .from(bridgingLogs)
+      .where(and(eq(bridgingLogs.sourceUserAddress, sourceUserAddress), eq(bridgingLogs.destinationUserAddress, destinationUserAddress)))
+      .orderBy(desc(bridgingLogs.timestamp))
+      .limit(limit)
+      .offset(offset);
+
     return rows.map((row) => selectBridgingLogSchema.parse(row));
   }
 }

@@ -11,11 +11,7 @@ export class BridgingLogsService implements IBridgingLogsService {
     await this.bridgingLogsRepository.insert(bridgingLog);
   }
 
-  async getBySourceUserAddress(sourceUserAddress: string): Promise<BridgingLog[]> {
-    return await this.bridgingLogsRepository.getBySourceUserAddress(sourceUserAddress);
-  }
-
-  async getByDestinationUserAddress(destinationUserAddress: string): Promise<BridgingLog[]> {
-    return await this.bridgingLogsRepository.getByDestinationUserAddress(destinationUserAddress);
+  async getByUserAddresses(sourceUserAddress: string, destinationUserAddress: string, limit: number, offset: number): Promise<BridgingLog[]> {
+    return await this.bridgingLogsRepository.getByUserAddresses(sourceUserAddress, destinationUserAddress, limit, offset);
   }
 }

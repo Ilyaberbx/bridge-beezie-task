@@ -2,6 +2,5 @@ import { BridgingLog, NewBridgingLog } from "../schema/bridgingLogs.schema";
 
 export interface IBridgingLogsRepository {
   insert(bridgingLog: NewBridgingLog): Promise<void>;
-  getBySourceUserAddress(sourceUserAddress: string): Promise<BridgingLog[]>;
-  getByDestinationUserAddress(destinationUserAddress: string): Promise<BridgingLog[]>;
+  getByUserAddresses(sourceUserAddress: string, destinationUserAddress: string, limit: number, offset: number): Promise<BridgingLog[]>;
 }
