@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { BrowserProvider, ethers, Signer } from "ethers";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CHAIN_IDS, isSupportedChain, SupportedChainId } from "../lib/configs";
 import { Erc20Abi__factory } from "../types/factories/Erc20Abi__factory";
 import { client } from "../lib/client";
@@ -13,121 +14,169 @@ type WalletState = {
   usdcAmount: string;
 } | null;
 
+const fetchUsdcAddress = async (chainId: number): Promise<string> => {
+  const response = await client.api.usdcAddress.$get({
+    query: {
+      chainId: chainId.toString(),
+    },
+  });
+
+  const data = await response.json();
+  if (data.status !== "success" || !("data" in data)) {
+    throw new Error("Failed to fetch USDC address");
+  }
+  return data.data;
+};
+
+const fetchUsdcBalance = async (params: { usdcAddress: string; walletAddress: string; signer: Signer }): Promise<string> => {
+  const usdcContract = Erc20Abi__factory.connect(params.usdcAddress, params.signer);
+  const balance = await usdcContract.balanceOf(params.walletAddress);
+  return ethers.formatUnits(balance, 6);
+};
+
 export function useWallets() {
   const [sourceWallet, setSourceWallet] = useState<WalletState>(null);
   const [destinationWallet, setDestinationWallet] = useState<WalletState>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
   const isConnectingRef = useRef(false);
+  const queryClient = useQueryClient();
 
   const getOppositeChainId = (chainId: SupportedChainId): SupportedChainId => {
     return chainId === CHAIN_IDS.FLOW_EVM_TESTNET ? CHAIN_IDS.BASE_SEPOLIA : CHAIN_IDS.FLOW_EVM_TESTNET;
   };
 
-  const switchToChain = async (chainId: SupportedChainId): Promise<void> => {
-    if (!window.ethereum) return;
+  const switchChainMutation = useMutation({
+    mutationFn: async (chainId: SupportedChainId) => {
+      if (!window.ethereum) {
+        throw new Error("MetaMask not installed");
+      }
 
-    const chainIdHex = `0x${chainId.toString(16)}`;
+      const chainIdHex = `0x${chainId.toString(16)}`;
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: chainIdHex }],
+      });
+    },
+  });
 
-    await window.ethereum.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId: chainIdHex }],
-    });
-  };
+  const connectWalletMutation = useMutation({
+    mutationFn: async (params: { expectedChainId?: SupportedChainId }): Promise<WalletState> => {
+      if (!window.ethereum) {
+        throw new Error("MetaMask not installed");
+      }
 
-  const connectWallet = async (expectedChainId?: SupportedChainId): Promise<WalletState> => {
-    if (!window.ethereum) {
-      throw new Error("MetaMask not installed");
-    }
+      const accounts = (await window.ethereum.request({
+        method: "eth_requestAccounts",
+      })) as string[];
 
-    const accounts = (await window.ethereum.request({
-      method: "eth_requestAccounts",
-    })) as string[];
+      if (!accounts || accounts.length === 0) {
+        throw new Error("No accounts found");
+      }
 
-    if (!accounts || accounts.length === 0) {
-      throw new Error("No accounts found");
-    }
+      const provider = new BrowserProvider(window.ethereum);
+      const network = await provider.getNetwork();
+      const currentChainId = Number(network.chainId);
 
-    const provider = new BrowserProvider(window.ethereum);
-    const network = await provider.getNetwork();
-    const currentChainId = Number(network.chainId);
+      if (params.expectedChainId && currentChainId !== params.expectedChainId) {
+        await switchChainMutation.mutateAsync(params.expectedChainId);
+        const newProvider = new BrowserProvider(window.ethereum);
+        const signer = await newProvider.getSigner();
+        const address = await signer.getAddress();
 
-    if (expectedChainId && currentChainId !== expectedChainId) {
-      await switchToChain(expectedChainId);
-      const newProvider = new BrowserProvider(window.ethereum);
-      const signer = await newProvider.getSigner();
+        const usdcAddress = await queryClient.fetchQuery({
+          queryKey: ["usdcAddress", params.expectedChainId],
+          queryFn: () => fetchUsdcAddress(params.expectedChainId!),
+        });
+
+        const usdcAmount = await queryClient.fetchQuery({
+          queryKey: ["usdcBalance", address, params.expectedChainId, usdcAddress],
+          queryFn: () => fetchUsdcBalance({ usdcAddress, walletAddress: address, signer }),
+        });
+
+        return { address, chainId: params.expectedChainId, signer, usdcAmount };
+      }
+
+      if (!isSupportedChain(currentChainId)) {
+        throw new Error("Unsupported chain. Please switch to chain 545 or 84532");
+      }
+
+      const signer = await provider.getSigner();
       const address = await signer.getAddress();
-      const usdcAddressResponse = await client.api.usdcAddress.$get({
-        query: {
-          chainId: expectedChainId.toString(),
-        },
+
+      const usdcAddress = await queryClient.fetchQuery({
+        queryKey: ["usdcAddress", currentChainId],
+        queryFn: () => fetchUsdcAddress(currentChainId),
       });
 
-      const usdcAddressData = await usdcAddressResponse.json();
-      if (usdcAddressData.status !== "success" || !("data" in usdcAddressData)) {
-        throw new Error("Failed to fetch USDC address");
-      }
-      const usdcAddress = usdcAddressData.data;
-      const usdcContract = Erc20Abi__factory.connect(usdcAddress, signer);
-      const usdcAmount = await usdcContract.balanceOf(address);
-      const formattedUsdcAmount = ethers.formatUnits(usdcAmount, 6);
+      const usdcAmount = await queryClient.fetchQuery({
+        queryKey: ["usdcBalance", address, currentChainId, usdcAddress],
+        queryFn: () => fetchUsdcBalance({ usdcAddress, walletAddress: address, signer }),
+      });
 
-      return { address, chainId: expectedChainId, signer, usdcAmount: formattedUsdcAmount };
-    }
+      return { address, chainId: currentChainId, signer, usdcAmount };
+    },
+  });
 
-    if (!isSupportedChain(currentChainId)) {
-      throw new Error("Unsupported chain. Please switch to chain 545 or 84532");
-    }
-
-    const signer = await provider.getSigner();
-    const address = await signer.getAddress();
-    const usdcAddressResponse = await client.api.usdcAddress.$get({
-      query: {
-        chainId: currentChainId.toString(),
-      },
-    });
-
-    const usdcAddressData = await usdcAddressResponse.json();
-    if (usdcAddressData.status !== "success" || !("data" in usdcAddressData)) {
-      throw new Error("Failed to fetch USDC address");
-    }
-    const usdcAddress = usdcAddressData.data;
-    const usdcContract = Erc20Abi__factory.connect(usdcAddress, signer);
-    const usdcAmount = await usdcContract.balanceOf(address);
-    const formattedUsdcAmount = ethers.formatUnits(usdcAmount, 6);
-
-    return { address, chainId: currentChainId, signer, usdcAmount: formattedUsdcAmount };
-  };
-
-  const connectSourceWallet = useCallback(async (chainId: SupportedChainId) => {
-    isConnectingRef.current = true;
-    setIsConnecting(true);
-    try {
-      const wallet = await connectWallet(chainId);
+  const connectSourceWalletMutation = useMutation({
+    mutationFn: async (chainId: SupportedChainId) => {
+      isConnectingRef.current = true;
+      const wallet = await connectWalletMutation.mutateAsync({ expectedChainId: chainId });
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      return wallet;
+    },
+    onSuccess: (wallet) => {
       setSourceWallet(wallet);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    } finally {
+    },
+    onSettled: () => {
       isConnectingRef.current = false;
-      setIsConnecting(false);
-    }
-  }, []);
+    },
+  });
 
-  const connectDestinationWallet = useCallback(async () => {
-    if (!sourceWallet) {
-      throw new Error("Connect source wallet first");
-    }
+  const connectDestinationWalletMutation = useMutation({
+    mutationFn: async () => {
+      if (!sourceWallet) {
+        throw new Error("Connect source wallet first");
+      }
 
-    isConnectingRef.current = true;
-    setIsConnecting(true);
-    try {
+      isConnectingRef.current = true;
       const requiredChainId = getOppositeChainId(sourceWallet.chainId);
-      const wallet = await connectWallet(requiredChainId);
-      setDestinationWallet(wallet);
+      const wallet = await connectWalletMutation.mutateAsync({ expectedChainId: requiredChainId });
       await new Promise((resolve) => setTimeout(resolve, 1000));
-    } finally {
+      return wallet;
+    },
+    onSuccess: (wallet) => {
+      setDestinationWallet(wallet);
+    },
+    onSettled: () => {
       isConnectingRef.current = false;
-      setIsConnecting(false);
-    }
-  }, [sourceWallet]);
+    },
+  });
+
+  const updateAccountMutation = useMutation({
+    mutationFn: async (params: { chainId: number; address: string; signer: Signer }) => {
+      const usdcAddress = await queryClient.fetchQuery({
+        queryKey: ["usdcAddress", params.chainId],
+        queryFn: () => fetchUsdcAddress(params.chainId),
+      });
+
+      const usdcAmount = await queryClient.fetchQuery({
+        queryKey: ["usdcBalance", params.address, params.chainId, usdcAddress],
+        queryFn: () => fetchUsdcBalance({ usdcAddress, walletAddress: params.address, signer: params.signer }),
+      });
+
+      return { usdcAmount };
+    },
+  });
+
+  const connectSourceWallet = useCallback(
+    (chainId: SupportedChainId) => {
+      connectSourceWalletMutation.mutate(chainId);
+    },
+    [connectSourceWalletMutation]
+  );
+
+  const connectDestinationWallet = useCallback(() => {
+    connectDestinationWalletMutation.mutate();
+  }, [connectDestinationWalletMutation]);
 
   const getAvailableDestinationChainId = useCallback((): SupportedChainId | null => {
     if (!sourceWallet) return null;
@@ -143,7 +192,9 @@ export function useWallets() {
   const disconnectWallets = useCallback(() => {
     setSourceWallet(null);
     setDestinationWallet(null);
-  }, []);
+    queryClient.invalidateQueries({ queryKey: ["usdcAddress"] });
+    queryClient.invalidateQueries({ queryKey: ["usdcBalance"] });
+  }, [queryClient]);
 
   useEffect(() => {
     if (!window.ethereum) return;
@@ -167,30 +218,18 @@ export function useWallets() {
         const newAddress = await signer.getAddress();
         const network = await provider.getNetwork();
         const chainId = Number(network.chainId);
-        const usdcAddressResponse = await client.api.usdcAddress.$get({
-          query: {
-            chainId: chainId.toString(),
-          },
-        });
 
-        const usdcAddressData = await usdcAddressResponse.json();
-        if (usdcAddressData.status !== "success" || !("data" in usdcAddressData)) {
-          throw new Error("Failed to fetch USDC address");
-        }
-        const usdcAddress = usdcAddressData.data;
-        const usdcContract = Erc20Abi__factory.connect(usdcAddress, signer);
-        const usdcAmount = await usdcContract.balanceOf(newAddress);
-        const formattedUsdcAmount = ethers.formatUnits(usdcAmount, 6);
+        const result = await updateAccountMutation.mutateAsync({ chainId, address: newAddress, signer });
 
         if (sourceWallet && isSupportedChain(chainId)) {
           if (chainId === sourceWallet.chainId) {
-            setSourceWallet({ address: newAddress, chainId, signer, usdcAmount: formattedUsdcAmount });
+            setSourceWallet({ address: newAddress, chainId, signer, usdcAmount: result.usdcAmount });
           }
         }
 
         if (destinationWallet && isSupportedChain(chainId)) {
           if (chainId === destinationWallet.chainId) {
-            setDestinationWallet({ address: newAddress, chainId, signer, usdcAmount: formattedUsdcAmount });
+            setDestinationWallet({ address: newAddress, chainId, signer, usdcAmount: result.usdcAmount });
           }
         }
       } catch (error) {
@@ -205,7 +244,9 @@ export function useWallets() {
       window.ethereum?.removeListener("chainChanged", handleChainChanged);
       window.ethereum?.removeListener("accountsChanged", handleAccountsChanged);
     };
-  }, [disconnectWallets, sourceWallet, destinationWallet]);
+  }, [disconnectWallets, sourceWallet, destinationWallet, updateAccountMutation]);
+
+  const isConnecting = connectSourceWalletMutation.isPending || connectDestinationWalletMutation.isPending;
 
   return {
     sourceWallet,

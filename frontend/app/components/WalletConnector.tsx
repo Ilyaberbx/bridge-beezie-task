@@ -19,20 +19,12 @@ export function WalletConnector({ wallets }: WalletConnectorProps) {
     getAvailableDestinationChainId,
   } = wallets;
 
-  const handleConnectSource = async (chainId: SupportedChainId) => {
-    try {
-      await connectSourceWallet(chainId);
-    } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to connect source wallet");
-    }
+  const handleConnectSource = (chainId: SupportedChainId) => {
+    connectSourceWallet(chainId);
   };
 
-  const handleConnectDestination = async () => {
-    try {
-      await connectDestinationWallet();
-    } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to connect destination wallet");
-    }
+  const handleConnectDestination = () => {
+    connectDestinationWallet();
   };
 
   return (
