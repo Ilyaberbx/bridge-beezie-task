@@ -7,7 +7,7 @@
 .idea/workspace.xml
 .idea/usage.statistics.xml
 .idea/shelf
-
+backend/src/types/
 # deps
 node_modules/
 
