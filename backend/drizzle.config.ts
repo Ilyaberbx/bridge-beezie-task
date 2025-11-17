@@ -1,5 +1,8 @@
 import type { Config } from "drizzle-kit";
 import "dotenv/config";
+import { config } from "dotenv";
+
+config();
 
 export default {
   schema: "./src/schema/bridgingLogs.schema.ts",

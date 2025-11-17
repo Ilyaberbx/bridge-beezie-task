@@ -7,17 +7,17 @@ export class BlockchainProviderService implements IBlockchainProviderService {
   constructor(config: { name: string; privateKey: string; rpcUrl: string; explorerUrl: string }[]) {
     this.providers = new Map<string, { provider: ethers.JsonRpcProvider; wallet: ethers.Wallet; explorerUrl: string }>();
     for (const provider of config) {
-      this.providers[provider.name] = {
+      this.providers.set(provider.name, {
         provider: new ethers.JsonRpcProvider(provider.rpcUrl),
         wallet: new ethers.Wallet(provider.privateKey, new ethers.JsonRpcProvider(provider.rpcUrl)),
         explorerUrl: provider.explorerUrl,
-      };
+      });
     }
   }
 
   public getProvider(chainName: string): ethers.JsonRpcProvider {
     try {
-      const { provider } = this.providers[chainName];
+      const provider = this.providers.get(chainName)?.provider;
       if (provider === undefined) {
         throw new Error("Provider not found for chain name: " + chainName);
       }
@@ -29,7 +29,7 @@ export class BlockchainProviderService implements IBlockchainProviderService {
 
   public getWallet(chainName: string): ethers.Wallet {
     try {
-      const { wallet } = this.providers[chainName];
+      const wallet = this.providers.get(chainName)?.wallet;
       if (wallet === undefined) {
         throw new Error("Wallet not found for chain name: " + chainName);
       }
@@ -41,7 +41,8 @@ export class BlockchainProviderService implements IBlockchainProviderService {
 
   public getExplorerUrl(chainName: string): string {
     try {
-      const { explorerUrl } = this.providers[chainName];
+      const explorerUrl = this.providers.get(chainName)?.explorerUrl;
+
       if (explorerUrl === undefined) {
         throw new Error("Explorer URL not found for chain name: " + chainName);
       }

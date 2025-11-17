@@ -135,7 +135,7 @@ export class BridgeController {
       context.amountToBridge
     );
 
-    const hasEnoughNativeTokenOnSource = await services.gasEstimationService.hasEnoughNativeTokenToPayForGas(
+    const hasEnoughNativeTokenOnSource = await services.gasEstimationService.hasEnoughNativeTokensToPayForGas(
       validatedRequestBody.sourceChainName,
       sourceEstimatedGas
     );
@@ -152,7 +152,7 @@ export class BridgeController {
       context.amountToBridge
     );
 
-    const hasEnoughNativeTokenOnDestination = await services.gasEstimationService.hasEnoughNativeTokenToPayForGas(
+    const hasEnoughNativeTokenOnDestination = await services.gasEstimationService.hasEnoughNativeTokensToPayForGas(
       validatedRequestBody.destinationChainName,
       destinationEstimatedGas
     );

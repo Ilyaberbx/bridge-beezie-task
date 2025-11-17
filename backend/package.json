@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "@hono/node-server": "^1.19.6",
+    "@hono/zod-validator": "^0.7.4",
     "@typechain/ethers-v6": "^0.5.1",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.44.7",
@@ -16,6 +17,7 @@
     "typechain": "typechain --target=ethers-v6 --out-dir src/types 'src/abi/*.abi.json'"
   },
   "devDependencies": {
+    "@types/node": "^24.10.1",
     "drizzle-kit": "^0.31.7",
     "typechain": "^8.3.2"
   }

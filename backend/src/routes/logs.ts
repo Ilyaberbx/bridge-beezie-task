@@ -1,13 +1,14 @@
 import { Hono } from "hono";
 import { services } from "../services";
 import { logsParamsSchema } from "../validation/logsParams";
+import { zValidator } from "@hono/zod-validator";
 import { ZodError } from "zod";
 
-const app = new Hono();
+const logs = new Hono();
 
-app.get("/", async (context) => {
+logs.get("/", zValidator("query", logsParamsSchema), async (context) => {
   try {
-    const validatedParams = logsParamsSchema.parse(context.req.query());
+    const validatedParams = context.req.valid("query");
     const logs = await services.bridgingLogsService.getByUserAddresses(
       validatedParams.sourceUserAddress,
       validatedParams.destinationUserAddress,
@@ -19,8 +20,8 @@ app.get("/", async (context) => {
     if (error instanceof ZodError) {
       return context.json({ status: "error", message: error.issues.map((e) => e.message).join(", "), code: "INVALID_PARAMS" }, 400);
     }
-    return context.json({ status: "error", message: error.message }, 500);
+    return context.json({ status: "error", message: error instanceof Error ? error.message : "Unknown error", code: "UNKNOWN_ERROR" }, 500);
   }
 });
 
-export default app;
+export default logs;

@@ -1,16 +1,16 @@
 import { Hono } from "hono";
 import { z } from "zod";
+import { zValidator } from "@hono/zod-validator";
 import { bridgeRequestSchema } from "../validation/bridgeRequest";
 import { BridgeController } from "../controllers/bridge.controller";
 
 const app = new Hono();
 const bridgeController = new BridgeController();
 
-app.post("/", async (context) => {
+app.post("/", zValidator("json", bridgeRequestSchema), async (context) => {
   try {
-    const body = await context.req.json();
-    const validateRequestBody = bridgeRequestSchema.parse(body);
-    const result = await bridgeController.executeBridge(validateRequestBody);
+    const validatedRequestBody = context.req.valid("json");
+    const result = await bridgeController.executeBridge(validatedRequestBody);
 
     if (result.status === "error") {
       return context.json(result, 400);
@@ -23,6 +23,7 @@ app.post("/", async (context) => {
         {
           status: "error",
           message: error.issues.map((e) => e.message).join(", "),
+          code: "INVALID_REQUEST",
         },
         400
       );
@@ -31,7 +32,8 @@ app.post("/", async (context) => {
     return context.json(
       {
         status: "error",
-        message: error.message,
+        message: error instanceof Error ? error.message : "Unknown error",
+        code: "UNKNOWN_ERROR",
       },
       500
     );
