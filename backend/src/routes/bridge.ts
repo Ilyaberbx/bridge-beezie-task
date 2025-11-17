@@ -1,18 +1,19 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { transferRequestSchema } from "../validation/bridge";
+import { bridgeRequestSchema } from "../validation/bridge";
 import { services } from "../services";
 import { Erc20Abi__factory } from "../types/factories/Erc20Abi__factory";
 import { ethers } from "ethers";
+import { NewBridgingLog } from "../schema/bridgingLogs.schema";
 
 const app = new Hono();
 
 app.post("/transfer", async (context) => {
   try {
     const body = await context.req.json();
-    const validatedData = transferRequestSchema.parse(body);
-    const sourceWallet = services.providerService.getWallet(validatedData.sourceChainName);
-    const destinationWallet = services.providerService.getWallet(validatedData.destinationChainName);
+    const validatedData = bridgeRequestSchema.parse(body);
+    const sourceWallet = services.walletProviderService.getWallet(validatedData.sourceChainName);
+    const destinationWallet = services.walletProviderService.getWallet(validatedData.destinationChainName);
     const sourceUsdcAddress = services.usdcAddressService.getUsdcAddress(validatedData.sourceChainName);
     const destinationUsdcAddress = services.usdcAddressService.getUsdcAddress(validatedData.destinationChainName);
 
@@ -65,9 +66,66 @@ app.post("/transfer", async (context) => {
     const sourceUserToSourcePoolReceipt = await sourceUserToSourcePoolTx.wait();
     console.log("Source user to source pool receipt", sourceUserToSourcePoolReceipt);
 
+    if (!sourceUserToSourcePoolReceipt) {
+      return context.json(
+        {
+          status: "error",
+          message: "Source user to source pool transaction failed",
+          code: "SOURCE_USER_TO_SOURCE_POOL_TRANSACTION_FAILED",
+        },
+        500
+      );
+    }
+
+    if (sourceUserToSourcePoolReceipt.status !== 1) {
+      return context.json(
+        {
+          status: "error",
+          message: "Source user to source pool transaction failed with status " + sourceUserToSourcePoolReceipt.status,
+          code: "SOURCE_USER_TO_SOURCE_POOL_TRANSACTION_FAILED_WITH_STATUS_" + sourceUserToSourcePoolReceipt.status,
+        },
+        500
+      );
+    }
+
     const destinationPoolToDestinationUserTx = await destinationUsdc.transfer(validatedData.destinationUserAddress, amountToBridge);
     const destinationPoolToDestinationUserReceipt = await destinationPoolToDestinationUserTx.wait();
     console.log("Destination pool to destination user receipt", destinationPoolToDestinationUserReceipt);
+
+    if (!destinationPoolToDestinationUserReceipt) {
+      return context.json(
+        {
+          status: "error",
+          message: "Destination pool to destination user transaction failed",
+          code: "DESTINATION_POOL_TO_DESTINATION_USER_TRANSACTION_FAILED",
+        },
+        500
+      );
+    }
+
+    if (destinationPoolToDestinationUserReceipt.status !== 1) {
+      return context.json(
+        {
+          status: "error",
+          message: "Destination pool to destination user transaction failed with status " + destinationPoolToDestinationUserReceipt.status,
+          code: "DESTINATION_POOL_TO_DESTINATION_USER_TRANSACTION_FAILED_WITH_STATUS_" + destinationPoolToDestinationUserReceipt.status,
+        },
+        500
+      );
+    }
+
+    const newBridgingLog: NewBridgingLog = {
+      sourceTxHash: sourceUserToSourcePoolReceipt.hash,
+      sourceTxExplorerUrl: services.walletProviderService.getExplorerUrl(validatedData.sourceChainName) + "/tx/" + sourceUserToSourcePoolReceipt.hash,
+      sourceUserAddress: validatedData.sourceUserAddress,
+      destinationTxHash: destinationPoolToDestinationUserReceipt.hash,
+      destinationTxExplorerUrl:
+        services.walletProviderService.getExplorerUrl(validatedData.destinationChainName) + "/tx/" + destinationPoolToDestinationUserReceipt.hash,
+      destinationUserAddress: validatedData.destinationUserAddress,
+      amountBridged: amountToBridge.toString(),
+    };
+
+    await services.bridgingLogsService.insert(newBridgingLog);
 
     return context.json(
       {

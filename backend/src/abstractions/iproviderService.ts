@@ -1,5 +1,6 @@
 import { ethers } from "ethers";
 
-export interface IProviderService {
+export interface IWalletProviderService {
   getWallet(chainName: string): ethers.Wallet;
+  getExplorerUrl(chainName: string): string;
 }

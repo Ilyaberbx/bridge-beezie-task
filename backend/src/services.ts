@@ -1,5 +1,5 @@
-import { IProviderService } from "./abstractions/iproviderService";
-import { ProviderService } from "./services/providerService";
+import { IWalletProviderService } from "./abstractions/iproviderService";
+import { WalletProviderService } from "./services/providerService";
 import { providersConfig } from "./configs/providersConfig";
 import { providersConfigSchema } from "./validation/providersConfig";
 import { UsdcAddressService } from "./services/usdcAddressService";
@@ -12,7 +12,7 @@ import { BridgingLogsService } from "./services/bridgingLogsService";
 import { IBridgingLogsService } from "./abstractions/ibridgingLogsService";
 
 function initializeServices(): {
-  providerService: IProviderService;
+  walletProviderService: IWalletProviderService;
   usdcAddressService: IUsdcAddressService;
   bridgingLogsService: IBridgingLogsService;
 } {
@@ -25,7 +25,7 @@ function initializeServices(): {
   const bridgingLogsRepository = new BridgingLogsRepository(database);
 
   return {
-    providerService: new ProviderService(validatedProviders),
+    walletProviderService: new WalletProviderService(validatedProviders),
     usdcAddressService: new UsdcAddressService(validatedUsdcAddresses),
     bridgingLogsService: new BridgingLogsService(bridgingLogsRepository),
   };
