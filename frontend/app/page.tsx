@@ -2,6 +2,7 @@
 
 import { useWallets } from "./hooks/useWallets";
 import { WalletConnector } from "./components/WalletConnector";
+import { BridgingInterface } from "./components/BridgingInterface";
 
 export default function Home() {
   const wallets = useWallets();
@@ -10,6 +11,7 @@ export default function Home() {
     <div className="min-h-screen p-8">
       <h1 className="text-3xl font-bold mb-8">Bridge Application</h1>
       <WalletConnector wallets={wallets} />
+      <BridgingInterface wallets={wallets} />
     </div>
   );
 }
