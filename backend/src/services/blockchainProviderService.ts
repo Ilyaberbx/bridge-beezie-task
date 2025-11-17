@@ -8,6 +8,7 @@ export class BlockchainProviderService implements IBlockchainProviderService {
     this.providers = new Map<string, { provider: ethers.JsonRpcProvider; wallet: ethers.Wallet; explorerUrl: string }>();
     for (const provider of config) {
       this.providers[provider.name] = {
+        provider: new ethers.JsonRpcProvider(provider.rpcUrl),
         wallet: new ethers.Wallet(provider.privateKey, new ethers.JsonRpcProvider(provider.rpcUrl)),
         explorerUrl: provider.explorerUrl,
       };

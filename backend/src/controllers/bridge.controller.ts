@@ -8,6 +8,18 @@ import { BridgeContext, ErrorResponse, SuccessResponse, TransferResult } from ".
 
 export class BridgeController {
   async executeBridge(validatedRequestBody: z.infer<typeof bridgeRequestSchema>): Promise<SuccessResponse | ErrorResponse> {
+    const operationKey = this.generateOperationKey(validatedRequestBody);
+
+    return services.operationTrackerService.trackOperation(operationKey, async () => {
+      return this.processBridge(validatedRequestBody);
+    });
+  }
+
+  private generateOperationKey(requestBody: z.infer<typeof bridgeRequestSchema>): string {
+    return `${requestBody.sourceUserAddress}-${requestBody.sourceChainName}-${requestBody.destinationUserAddress}-${requestBody.destinationChainName}-${requestBody.amount}`;
+  }
+
+  private async processBridge(validatedRequestBody: z.infer<typeof bridgeRequestSchema>): Promise<SuccessResponse | ErrorResponse> {
     const context = await this.setupBridgeContext(validatedRequestBody);
 
     const validationError = await this.validateBridgeRequirements(context, validatedRequestBody);
@@ -28,19 +40,25 @@ export class BridgeController {
     const destinationResult = await this.executeDestinationTransfer(context, validatedRequestBody.destinationUserAddress);
 
     if (this.isErrorResponse(destinationResult)) {
+      const revertSourceResult = await this.revertSourceTransfer(context, validatedRequestBody.sourceUserAddress);
+
+      if (this.isErrorResponse(revertSourceResult)) {
+        return revertSourceResult;
+      }
+
       return destinationResult;
     }
 
     const bridgingLog = this.createBridgingLog(validatedRequestBody, sourceResult.receipt, destinationResult.receipt, context.amountToBridge);
     await services.bridgingLogsService.insert(bridgingLog);
 
+    const message = `Transfer completed successfully. Source transaction: ${bridgingLog.sourceTxExplorerUrl} - Destination transaction: ${bridgingLog.destinationTxExplorerUrl} - Amount bridged: ${bridgingLog.amountBridged}`;
+
+    console.log(message);
+
     return {
       status: "success",
-      message:
-        "Transfer completed successfully with source receipt: " +
-        sourceResult.receipt.hash +
-        " and destination receipt: " +
-        destinationResult.receipt.hash,
+      message: message,
     };
   }
 
@@ -195,6 +213,24 @@ export class BridgeController {
       };
     }
 
+    return { receipt };
+  }
+
+  private async revertSourceTransfer(context: BridgeContext, sourceUserAddress: string): Promise<ErrorResponse | TransferResult> {
+    const transaction = await context.sourceUsdc.transferFrom(context.sourceWallet.address, sourceUserAddress, context.amountToBridge);
+    const receipt = await transaction.wait();
+    if (!receipt) {
+      return {
+        status: "error",
+        message: "Revert source pool to source user transaction failed",
+      };
+    }
+    if (receipt.status !== 1) {
+      return {
+        status: "error",
+        message: `Revert source pool to source user transaction failed with status ${receipt.status}`,
+      };
+    }
     return { receipt };
   }
 

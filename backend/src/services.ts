@@ -12,12 +12,15 @@ import { BridgingLogsService } from "./services/bridgingLogsService";
 import { IBridgingLogsService } from "./abstractions/ibridgingLogsService";
 import { GasEstimationService } from "./services/gasEstimationService";
 import { IGasEstimationService } from "./abstractions/igasCheckService";
+import { OperationTrackerService } from "./services/operationTrackerService";
+import { IOperationTrackerService } from "./abstractions/ioperationTrackerService";
 
 function initializeServices(): {
   blockchainProviderService: IBlockchainProviderService;
   usdcAddressService: IUsdcAddressService;
   bridgingLogsService: IBridgingLogsService;
   gasEstimationService: IGasEstimationService;
+  operationTrackerService: IOperationTrackerService;
 } {
   const database = drizzle({
     connection: process.env.MYSQL_CONNECTION_URL!,
@@ -33,6 +36,7 @@ function initializeServices(): {
     usdcAddressService: new UsdcAddressService(validatedUsdcAddresses),
     bridgingLogsService: new BridgingLogsService(bridgingLogsRepository),
     gasEstimationService: new GasEstimationService(blockchainProviderService),
+    operationTrackerService: new OperationTrackerService(),
   };
 }
 
