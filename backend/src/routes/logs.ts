@@ -4,9 +4,7 @@ import { logsParamsSchema } from "../validation/logsParams";
 import { zValidator } from "@hono/zod-validator";
 import { ZodError } from "zod";
 
-const logs = new Hono();
-
-logs.get("/", zValidator("query", logsParamsSchema), async (context) => {
+const app = new Hono().get("/", zValidator("query", logsParamsSchema), async (context) => {
   try {
     const validatedParams = context.req.valid("query");
     const logs = await services.bridgingLogsService.getByUserAddresses(
@@ -24,4 +22,4 @@ logs.get("/", zValidator("query", logsParamsSchema), async (context) => {
   }
 });
 
-export default logs;
+export default app;

@@ -4,10 +4,8 @@ import { zValidator } from "@hono/zod-validator";
 import { bridgeRequestSchema } from "../validation/bridgeRequest";
 import { BridgeController } from "../controllers/bridge.controller";
 
-const app = new Hono();
 const bridgeController = new BridgeController();
-
-app.post("/", zValidator("json", bridgeRequestSchema), async (context) => {
+const app = new Hono().post("/", zValidator("json", bridgeRequestSchema), async (context) => {
   try {
     const validatedRequestBody = context.req.valid("json");
     const result = await bridgeController.executeBridge(validatedRequestBody);
