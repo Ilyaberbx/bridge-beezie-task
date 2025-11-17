@@ -1,5 +1,5 @@
-import { IWalletProviderService } from "./abstractions/iproviderService";
-import { WalletProviderService } from "./services/providerService";
+import { IBlockchainProviderService } from "./abstractions/iblockchainProviderService";
+import { BlockchainProviderService } from "./services/blockchainProviderService";
 import { providersConfig } from "./configs/providersConfig";
 import { providersConfigSchema } from "./validation/providersConfig";
 import { UsdcAddressService } from "./services/usdcAddressService";
@@ -10,11 +10,14 @@ import { drizzle } from "drizzle-orm/mysql2";
 import { BridgingLogsRepository } from "./repositories/bridgingLogsRepository";
 import { BridgingLogsService } from "./services/bridgingLogsService";
 import { IBridgingLogsService } from "./abstractions/ibridgingLogsService";
+import { GasEstimationService } from "./services/gasEstimationService";
+import { IGasEstimationService } from "./abstractions/igasCheckService";
 
 function initializeServices(): {
-  walletProviderService: IWalletProviderService;
+  blockchainProviderService: IBlockchainProviderService;
   usdcAddressService: IUsdcAddressService;
   bridgingLogsService: IBridgingLogsService;
+  gasEstimationService: IGasEstimationService;
 } {
   const database = drizzle({
     connection: process.env.MYSQL_CONNECTION_URL!,
@@ -23,11 +26,13 @@ function initializeServices(): {
   const validatedProviders = providersConfigSchema.parse(providersConfig);
   const validatedUsdcAddresses = usdcAddressesConfigSchema.parse(usdcAddressesConfig);
   const bridgingLogsRepository = new BridgingLogsRepository(database);
+  const blockchainProviderService = new BlockchainProviderService(validatedProviders);
 
   return {
-    walletProviderService: new WalletProviderService(validatedProviders),
+    blockchainProviderService,
     usdcAddressService: new UsdcAddressService(validatedUsdcAddresses),
     bridgingLogsService: new BridgingLogsService(bridgingLogsRepository),
+    gasEstimationService: new GasEstimationService(blockchainProviderService),
   };
 }
 

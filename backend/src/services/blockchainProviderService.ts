@@ -1,7 +1,7 @@
-import { IWalletProviderService } from "../abstractions/iproviderService";
+import { IBlockchainProviderService } from "../abstractions/iblockchainProviderService";
 import { ethers } from "ethers";
 
-export class WalletProviderService implements IWalletProviderService {
+export class BlockchainProviderService implements IBlockchainProviderService {
   private providers: Map<string, { provider: ethers.JsonRpcProvider; wallet: ethers.Wallet; explorerUrl: string }>;
 
   constructor(config: { name: string; privateKey: string; rpcUrl: string; explorerUrl: string }[]) {
@@ -14,11 +14,23 @@ export class WalletProviderService implements IWalletProviderService {
     }
   }
 
+  public getProvider(chainName: string): ethers.JsonRpcProvider {
+    try {
+      const { provider } = this.providers[chainName];
+      if (provider === undefined) {
+        throw new Error("Provider not found for chain name: " + chainName);
+      }
+      return provider;
+    } catch (error) {
+      throw new Error("Error getting provider for chain name: " + chainName + " - " + error);
+    }
+  }
+
   public getWallet(chainName: string): ethers.Wallet {
     try {
       const { wallet } = this.providers[chainName];
       if (wallet === undefined) {
-        throw new Error("Provider or wallet not found for chain name: " + chainName);
+        throw new Error("Wallet not found for chain name: " + chainName);
       }
       return wallet;
     } catch (error) {
