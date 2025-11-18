@@ -78,9 +78,9 @@ export function useUsdcBalance(address: string | undefined, chainId: SupportedCh
         signer: signer!,
       }),
     enabled: !!address && !!chainId && !!signer && !!usdcAddressQuery.data,
-    staleTime: 0,
-    refetchInterval: false,
-    retry: 2,
+    staleTime: 30000,
+    refetchOnMount: true,
+    retry: 3,
   });
 
   return {

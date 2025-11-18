@@ -13,15 +13,15 @@ import { ethers, BrowserProvider } from "ethers";
 import { UseWalletsReturn } from "../hooks/useWallets";
 import { useUsdcBalance } from "../hooks/useUsdcBalance";
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 type FormFields = z.infer<ReturnType<typeof createBridgingSchema>>;
 
 export function BridgingInterface({ wallets }: { wallets: UseWalletsReturn }) {
   const { sourceWallet, destinationWallet, setIsActive } = wallets;
+  const queryClient = useQueryClient();
 
   const sourceBalance = useUsdcBalance(sourceWallet?.address, sourceWallet?.chainId, sourceWallet?.signer);
-  const destinationBalance = useUsdcBalance(destinationWallet?.address, destinationWallet?.chainId, destinationWallet?.signer);
 
   const maxAmount = sourceBalance.usdcAmount ? Number(sourceBalance.usdcAmount) : 0;
 
@@ -102,8 +102,9 @@ export function BridgingInterface({ wallets }: { wallets: UseWalletsReturn }) {
       setIsActive(false);
     },
     onSuccess: async (data) => {
-      await sourceBalance.refetch();
-      await destinationBalance.refetch();
+      await queryClient.invalidateQueries({
+        queryKey: ["usdcBalance"],
+      });
       setModalTitle("Bridge successful");
       setModalMessage(data.message);
       setOpenModal(true);
@@ -124,7 +125,11 @@ export function BridgingInterface({ wallets }: { wallets: UseWalletsReturn }) {
   });
 
   if (!sourceWallet || !destinationWallet) {
-    return <div>Connect your wallets first</div>;
+    return (
+      <div className="text-center py-8 text-gray-500 bg-gradient-to-br from-gray-50 to-slate-50 rounded-xl p-6 border border-gray-200">
+        Connect your wallets first
+      </div>
+    );
   }
 
   const handleSliderChange = (value: number | number[]) => {
@@ -138,9 +143,9 @@ export function BridgingInterface({ wallets }: { wallets: UseWalletsReturn }) {
 
   return (
     <div>
-      <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-md mx-auto p-6 bg-white rounded-lg shadow-lg">
-        <div className="mb-6">
-          <label htmlFor="usdcAmount" className="block text-sm font-medium text-gray-700 mb-2">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl p-6 border border-indigo-100">
+          <label htmlFor="usdcAmount" className="block text-lg font-semibold text-gray-800 mb-4">
             USDC Amount
           </label>
           {maxAmount > 0 && (
@@ -157,21 +162,22 @@ export function BridgingInterface({ wallets }: { wallets: UseWalletsReturn }) {
               valueAsNumber: true,
             })}
             type="number"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+            step="0.01"
+            className="w-full px-4 py-3 border-2 border-indigo-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all bg-white"
           />
           {errors.usdcAmount && <p className="mt-2 text-sm text-red-600">{errors.usdcAmount.message}</p>}
         </div>
         <button
           type="submit"
           disabled={isSubmitting || bridgeMutation.isPending}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-4 px-6 rounded-lg transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {bridgeMutation.isPending ? "Bridging..." : "Bridge USDC"}
         </button>
       </form>
       <Modal open={openModal} onClose={onCloseModal}>
-        <h2>{modalTitle}</h2>
-        <p>{modalMessage}</p>
+        <h2 className="text-xl font-bold mb-4">{modalTitle}</h2>
+        <p className="text-gray-600">{modalMessage}</p>
       </Modal>
     </div>
   );
