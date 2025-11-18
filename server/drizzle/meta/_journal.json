@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1763379190294,
+      "tag": "0000_aberrant_karen_page",
+      "breakpoints": true
+    }
+  ]
+}
