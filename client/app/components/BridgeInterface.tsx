@@ -23,7 +23,6 @@ export function BridgeInterface({ wallets, showModal }: BridgeInterfaceProps) {
   const sourceBalance = useUsdcBalance(sourceWallet?.address, sourceWallet?.chainId, sourceWallet?.signer);
 
   const maxAmount = sourceBalance.usdcAmount ? Number(sourceBalance.usdcAmount) : 0;
-  ``;
 
   const {
     register,
@@ -60,8 +59,8 @@ export function BridgeInterface({ wallets, showModal }: BridgeInterfaceProps) {
         setIsActive(false);
       },
       onSuccess: async (data: BridgeResponse) => {
-        await queryClient.invalidateQueries({
-          queryKey: ["usdcBalance"],
+        queryClient.invalidateQueries({
+          predicate: (query) => query.queryKey[0] === "usdcBalance",
         });
         showModal("Bridge successful", data.message);
       },
