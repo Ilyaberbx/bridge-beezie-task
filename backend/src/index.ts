@@ -6,10 +6,19 @@ import bridge from "./routes/bridge";
 import logs from "./routes/logs";
 import { serve } from "@hono/node-server";
 import usdcAddress from "./routes/usdcAddress";
+import { rateLimiter } from "hono-rate-limiter";
 
 const app = new Hono();
 
 app.use(logger());
+app.use(
+  rateLimiter({
+    windowMs: 60000,
+    limit: 100,
+    standardHeaders: "draft-6",
+    keyGenerator: (c) => c.req.header("cf-connecting-ip") ?? "",
+  })
+);
 app.use(
   cors({
     origin: "http://localhost:3000",
