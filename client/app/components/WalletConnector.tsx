@@ -1,6 +1,6 @@
 "use client";
 
-import { getChainName, CHAIN_IDS, getChainConfig, SupportedChainId } from "../lib/configs";
+import { getChainName, CHAIN_IDS, getChainConfig, SupportedChainId } from "../configs/configs";
 import type { UseWalletsReturn } from "../hooks/useWallets";
 import { useUsdcBalance } from "../hooks/useUsdcBalance";
 
@@ -71,8 +71,6 @@ export function WalletConnector({ wallets }: WalletConnectorProps) {
               <span className="font-semibold text-gray-700">USDC Amount:</span>{" "}
               {sourceBalance.isLoading ? (
                 <span className="text-gray-500">Loading...</span>
-              ) : sourceBalance.error ? (
-                <span className="text-red-600">Error loading balance {sourceBalance.error.message}</span>
               ) : (
                 <span className="text-gray-600 font-medium">{sourceBalance.usdcAmount}</span>
               )}
@@ -112,8 +110,6 @@ export function WalletConnector({ wallets }: WalletConnectorProps) {
               <span className="font-semibold text-gray-700">USDC Amount:</span>{" "}
               {destinationBalance.isLoading ? (
                 <span className="text-gray-500">Loading...</span>
-              ) : destinationBalance.error ? (
-                <span className="text-red-600">Error loading balance {destinationBalance.error.message}</span>
               ) : (
                 <span className="text-gray-600 font-medium">{destinationBalance.usdcAmount}</span>
               )}

@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { BrowserProvider, Signer } from "ethers";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CHAIN_IDS, isSupportedChain, SupportedChainId } from "../lib/configs";
+import { CHAIN_IDS, isSupportedChain, SupportedChainId } from "../configs/configs";
 import { getIsFetchingBalance } from "./useUsdcBalance";
 
 export type WalletState = {

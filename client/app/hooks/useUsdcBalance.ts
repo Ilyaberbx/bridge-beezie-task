@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ethers, Signer, BrowserProvider } from "ethers";
 import { Erc20Abi__factory } from "../types/factories/Erc20Abi__factory";
 import { client } from "../lib/client";
-import { SupportedChainId } from "../lib/configs";
+import { SupportedChainId } from "../configs/configs";
 
 let isFetchingBalance = false;
 

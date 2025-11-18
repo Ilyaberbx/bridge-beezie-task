@@ -7,7 +7,7 @@ import { createBridgingSchema } from "../validation/bridging";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Erc20Abi__factory } from "../types/factories/Erc20Abi__factory";
-import { getChainConfig } from "../lib/configs";
+import { getChainConfig } from "../configs/configs";
 import { client } from "../lib/client";
 import { ethers, BrowserProvider } from "ethers";
 import { UseWalletsReturn } from "../hooks/useWallets";
