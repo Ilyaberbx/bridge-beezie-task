@@ -16,9 +16,9 @@ const app = new Hono().get("/", zValidator("query", logsParamsSchema), async (co
     return context.json({ status: "success", data: logs }, 200);
   } catch (error) {
     if (error instanceof ZodError) {
-      return context.json({ status: "error", message: error.issues.map((e) => e.message).join(", "), code: "INVALID_PARAMS" }, 400);
+      return context.json({ status: "error", message: error.issues.map((e) => e.message).join(", ") }, 400);
     }
-    return context.json({ status: "error", message: error instanceof Error ? error.message : "Unknown error", code: "UNKNOWN_ERROR" }, 500);
+    return context.json({ status: "error", message: error instanceof Error ? error.message : "Unknown error" }, 500);
   }
 });
 

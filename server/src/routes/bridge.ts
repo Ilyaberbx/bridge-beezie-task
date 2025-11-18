@@ -21,7 +21,6 @@ const app = new Hono().post("/", zValidator("json", bridgeRequestSchema), async 
         {
           status: "error",
           message: error.issues.map((e) => e.message).join(", "),
-          code: "INVALID_REQUEST",
         },
         400
       );
@@ -31,7 +30,6 @@ const app = new Hono().post("/", zValidator("json", bridgeRequestSchema), async 
       {
         status: "error",
         message: error instanceof Error ? error.message : "Unknown error",
-        code: "UNKNOWN_ERROR",
       },
       500
     );
