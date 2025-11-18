@@ -87,7 +87,6 @@ export function useUsdcBalance(address: string | undefined, chainId: SupportedCh
     usdcAddress: usdcAddressQuery.data,
     usdcAmount: balanceQuery.data,
     isLoading: usdcAddressQuery.isLoading || balanceQuery.isLoading,
-    error: usdcAddressQuery.error || balanceQuery.error,
-    refetch: balanceQuery.refetch,
+    error: usdcAddressQuery.error || balanceQuery.error
   };
 }

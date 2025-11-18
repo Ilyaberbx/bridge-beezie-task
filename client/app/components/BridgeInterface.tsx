@@ -58,10 +58,8 @@ export function BridgeInterface({ wallets, showModal }: BridgeInterfaceProps) {
       onMutate: () => {
         setIsActive(false);
       },
-      onSuccess: async (data: BridgeResponse) => {
-        queryClient.invalidateQueries({
-          predicate: (query) => query.queryKey[0] === "usdcBalance",
-        });
+      onSuccess: (data: BridgeResponse) => {
+        queryClient.invalidateQueries({ queryKey: ["usdcBalance"] });
         showModal("Bridge successful", data.message);
       },
       onError: (error: Error) => {
@@ -70,6 +68,7 @@ export function BridgeInterface({ wallets, showModal }: BridgeInterfaceProps) {
         showModal(title, errorMessage);
       },
       onSettled: () => {
+        queryClient.invalidateQueries({ queryKey: ["usdcBalance"] });
         setIsActive(true);
       },
     }
