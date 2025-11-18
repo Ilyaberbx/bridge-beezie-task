@@ -13,11 +13,6 @@
     "rootDir": "./src",
     "declaration": true
   },
-  "references": [
-    {
-      "path": "../shared/tsconfig.json"
-    }
-  ],
   "include": [
     "src/**/*",
     "src/configs/usdcAddressesConfig.ts",

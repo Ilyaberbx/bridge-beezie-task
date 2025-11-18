@@ -5,24 +5,12 @@ export const SUPPORTED_CHAINS = {
   FLOW_EVM_TESTNET: {
     chainId: 545,
     name: "Flow EVM Testnet",
-    rpcUrl: process.env.NEXT_PUBLIC_FLOW_EVM_TESTNET_RPC_URL || "https://testnet.evm.nodes.onflow.org",
-    nativeCurrency: {
-      name: "FLOW",
-      symbol: "FLOW",
-      decimals: 18,
-    },
-    blockExplorer: process.env.NEXT_PUBLIC_FLOW_EVM_TESTNET_BLOCK_EXPLORER || "https://evm-testnet.flowscan.io",
+    poolAddress: process.env.NEXT_PUBLIC_FLOW_EVM_TESTNET_POOL_ADDRESS!,
   },
   BASE_SEPOLIA: {
     chainId: 84532,
     name: "Base Sepolia",
-    rpcUrl: process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
-    nativeCurrency: {
-      name: "Ethereum",
-      symbol: "ETH",
-      decimals: 18,
-    },
-    blockExplorer: process.env.NEXT_PUBLIC_BASE_SEPOLIA_BLOCK_EXPLORER || "https://sepolia.basescan.org",
+    poolAddress: process.env.NEXT_PUBLIC_BASE_TESTNET_POOL_ADDRESS!,
   },
 } as const;
 

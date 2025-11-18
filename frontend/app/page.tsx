@@ -11,7 +11,7 @@ export default function Home() {
     <div className="min-h-screen p-8">
       <h1 className="text-3xl font-bold mb-8">Bridge Application</h1>
       <WalletConnector wallets={wallets} />
-      <BridgingInterface wallets={wallets} />
+      <BridgingInterface sourceWallet={wallets.sourceWallet} destinationWallet={wallets.destinationWallet} />
     </div>
   );
 }

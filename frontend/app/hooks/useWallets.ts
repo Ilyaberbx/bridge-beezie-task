@@ -7,11 +7,12 @@ import { CHAIN_IDS, isSupportedChain, SupportedChainId } from "../lib/configs";
 import { Erc20Abi__factory } from "../types/factories/Erc20Abi__factory";
 import { client } from "../lib/client";
 
-type WalletState = {
+export type WalletState = {
   address: string;
   chainId: SupportedChainId;
   signer: Signer;
   usdcAmount: string;
+  usdcAddress: string;
 } | null;
 
 const fetchUsdcAddress = async (chainId: number): Promise<string> => {
@@ -92,7 +93,7 @@ export function useWallets() {
           queryFn: () => fetchUsdcBalance({ usdcAddress, walletAddress: address, signer }),
         });
 
-        return { address, chainId: params.expectedChainId, signer, usdcAmount };
+        return { address, chainId: params.expectedChainId, signer, usdcAmount, usdcAddress };
       }
 
       if (!isSupportedChain(currentChainId)) {
@@ -112,7 +113,7 @@ export function useWallets() {
         queryFn: () => fetchUsdcBalance({ usdcAddress, walletAddress: address, signer }),
       });
 
-      return { address, chainId: currentChainId, signer, usdcAmount };
+      return { address, chainId: currentChainId, signer, usdcAmount, usdcAddress };
     },
   });
 
@@ -141,6 +142,10 @@ export function useWallets() {
       const requiredChainId = getOppositeChainId(sourceWallet.chainId);
       const wallet = await connectWalletMutation.mutateAsync({ expectedChainId: requiredChainId });
       await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      await switchChainMutation.mutateAsync(sourceWallet.chainId);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       return wallet;
     },
     onSuccess: (wallet) => {
@@ -163,7 +168,7 @@ export function useWallets() {
         queryFn: () => fetchUsdcBalance({ usdcAddress, walletAddress: params.address, signer: params.signer }),
       });
 
-      return { usdcAmount };
+      return { usdcAmount, usdcAddress };
     },
   });
 
@@ -183,11 +188,21 @@ export function useWallets() {
     return getOppositeChainId(sourceWallet.chainId);
   }, [sourceWallet]);
 
-  const swapWallets = useCallback(() => {
+  const swapWallets = useCallback(async () => {
+    if (!destinationWallet) return;
+
+    isConnectingRef.current = true;
     const temp = sourceWallet;
     setSourceWallet(destinationWallet);
     setDestinationWallet(temp);
-  }, [sourceWallet, destinationWallet]);
+
+    try {
+      await switchChainMutation.mutateAsync(destinationWallet.chainId);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    } finally {
+      isConnectingRef.current = false;
+    }
+  }, [sourceWallet, destinationWallet, switchChainMutation]);
 
   const disconnectWallets = useCallback(() => {
     setSourceWallet(null);
@@ -223,13 +238,13 @@ export function useWallets() {
 
         if (sourceWallet && isSupportedChain(chainId)) {
           if (chainId === sourceWallet.chainId) {
-            setSourceWallet({ address: newAddress, chainId, signer, usdcAmount: result.usdcAmount });
+            setSourceWallet({ address: newAddress, chainId, signer, usdcAmount: result.usdcAmount, usdcAddress: result.usdcAddress });
           }
         }
 
         if (destinationWallet && isSupportedChain(chainId)) {
           if (chainId === destinationWallet.chainId) {
-            setDestinationWallet({ address: newAddress, chainId, signer, usdcAmount: result.usdcAmount });
+            setDestinationWallet({ address: newAddress, chainId, signer, usdcAmount: result.usdcAmount, usdcAddress: result.usdcAddress });
           }
         }
       } catch (error) {
