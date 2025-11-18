@@ -9,16 +9,21 @@ import { z } from "zod";
 import { Erc20Abi__factory } from "../types/factories/Erc20Abi__factory";
 import { getChainConfig } from "../lib/configs";
 import { client } from "../lib/client";
-import { ethers } from "ethers";
+import { ethers, BrowserProvider } from "ethers";
 import { UseWalletsReturn } from "../hooks/useWallets";
+import { useUsdcBalance } from "../hooks/useUsdcBalance";
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 
 type FormFields = z.infer<ReturnType<typeof createBridgingSchema>>;
 
 export function BridgingInterface({ wallets }: { wallets: UseWalletsReturn }) {
   const { sourceWallet, destinationWallet, setIsActive } = wallets;
 
-  const maxAmount = sourceWallet ? Number(sourceWallet.usdcAmount) : 0;
+  const sourceBalance = useUsdcBalance(sourceWallet?.address, sourceWallet?.chainId, sourceWallet?.signer);
+  const destinationBalance = useUsdcBalance(destinationWallet?.address, destinationWallet?.chainId, destinationWallet?.signer);
+
+  const maxAmount = sourceBalance.usdcAmount ? Number(sourceBalance.usdcAmount) : 0;
 
   const {
     register,
@@ -40,59 +45,95 @@ export function BridgingInterface({ wallets }: { wallets: UseWalletsReturn }) {
 
   const currentAmount = watch("usdcAmount");
 
+  const bridgeMutation = useMutation({
+    mutationFn: async (data: FormFields) => {
+      if (!sourceWallet || !destinationWallet || !sourceBalance.usdcAddress) {
+        throw new Error("Wallets not connected properly");
+      }
+
+      if (!window.ethereum) {
+        throw new Error("MetaMask not installed");
+      }
+
+      const currentProvider = new BrowserProvider(window.ethereum);
+      const currentNetwork = await currentProvider.getNetwork();
+      const currentChainId = Number(currentNetwork.chainId);
+
+      if (currentChainId !== sourceWallet.chainId) {
+        const chainIdHex = `0x${sourceWallet.chainId.toString(16)}`;
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: chainIdHex }],
+        });
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const usdcContract = Erc20Abi__factory.connect(sourceBalance.usdcAddress, signer);
+      const poolAddress = getChainConfig(sourceWallet.chainId).poolAddress;
+      const denormalizedAmount = ethers.parseUnits(data.usdcAmount.toString(), 6);
+
+      const approve = await usdcContract.approve(poolAddress, denormalizedAmount);
+      const receipt = await approve.wait();
+      if (!receipt || receipt.status !== 1) {
+        throw new Error("Approval transaction failed");
+      }
+
+      const response = await client.api.bridge.$post({
+        json: {
+          sourceUserAddress: sourceWallet.address,
+          sourceChainId: sourceWallet.chainId,
+          destinationUserAddress: destinationWallet.address,
+          destinationChainId: destinationWallet.chainId,
+          amount: data.usdcAmount,
+        },
+      });
+
+      const responseData = await response.json();
+
+      if (responseData.status !== "success") {
+        throw new Error(responseData.message);
+      }
+
+      return responseData;
+    },
+    onMutate: () => {
+      setIsActive(false);
+    },
+    onSuccess: async (data) => {
+      await sourceBalance.refetch();
+      await destinationBalance.refetch();
+      setModalTitle("Bridge successful");
+      setModalMessage(data.message);
+      setOpenModal(true);
+    },
+    onError: (error: Error) => {
+      const errorMessage = error.message;
+      if (errorMessage.includes("Approval")) {
+        setModalTitle("Approval failed");
+      } else {
+        setModalTitle("Bridge failed");
+      }
+      setModalMessage(errorMessage);
+      setOpenModal(true);
+    },
+    onSettled: () => {
+      setIsActive(true);
+    },
+  });
+
   if (!sourceWallet || !destinationWallet) {
     return <div>Connect your wallets first</div>;
   }
+
   const handleSliderChange = (value: number | number[]) => {
     const numericValue = Array.isArray(value) ? value[0] : value;
     setValue("usdcAmount", numericValue, { shouldValidate: true });
   };
 
   const onSubmit: SubmitHandler<FormFields> = async (data: FormFields) => {
-    setIsActive(false);
-    const usdcAddress = sourceWallet.usdcAddress;
-    const usdcContract = Erc20Abi__factory.connect(usdcAddress, sourceWallet.signer);
-    const poolAddress = getChainConfig(sourceWallet.chainId).poolAddress;
-    const denormalizedAmount = ethers.parseUnits(data.usdcAmount.toString(), 6);
-
-    try {
-      const approve = await usdcContract.approve(poolAddress, denormalizedAmount);
-      const receipt = await approve.wait();
-      if (!receipt || receipt.status !== 1) {
-        setModalTitle("Approval failed");
-        setModalMessage("Approval transaction failed");
-        setOpenModal(true);
-        return;
-      }
-    } catch (error) {
-      setModalTitle("Approval failed");
-      setModalMessage((error as Error).message);
-      setOpenModal(true);
-      return;
-    }
-
-    const response = await client.api.bridge.$post({
-      json: {
-        sourceUserAddress: sourceWallet.address,
-        sourceChainId: sourceWallet.chainId,
-        destinationUserAddress: destinationWallet.address,
-        destinationChainId: destinationWallet.chainId,
-        amount: data.usdcAmount,
-      },
-    });
-
-    const responseData = await response.json();
-
-    if (responseData.status !== "success") {
-      setModalTitle("Bridge failed");
-      setModalMessage(responseData.message);
-      setOpenModal(true);
-      return;
-    }
-
-    setModalTitle("Bridge successful");
-    setModalMessage(responseData.message);
-    setOpenModal(true);
+    bridgeMutation.mutate(data);
   };
 
   return (
@@ -122,10 +163,10 @@ export function BridgingInterface({ wallets }: { wallets: UseWalletsReturn }) {
         </div>
         <button
           type="submit"
-          disabled={isSubmitting}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
+          disabled={isSubmitting || bridgeMutation.isPending}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Bridge USDC
+          {bridgeMutation.isPending ? "Bridging..." : "Bridge USDC"}
         </button>
       </form>
       <Modal open={openModal} onClose={onCloseModal}>

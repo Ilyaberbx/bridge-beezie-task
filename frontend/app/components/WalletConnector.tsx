@@ -2,6 +2,7 @@
 
 import { getChainName, CHAIN_IDS, getChainConfig, SupportedChainId } from "../lib/configs";
 import type { UseWalletsReturn } from "../hooks/useWallets";
+import { useUsdcBalance } from "../hooks/useUsdcBalance";
 
 interface WalletConnectorProps {
   wallets: UseWalletsReturn;
@@ -19,6 +20,9 @@ export function WalletConnector({ wallets }: WalletConnectorProps) {
     getAvailableDestinationChainId,
     isActive,
   } = wallets;
+
+  const sourceBalance = useUsdcBalance(sourceWallet?.address, sourceWallet?.chainId, sourceWallet?.signer);
+  const destinationBalance = useUsdcBalance(destinationWallet?.address, destinationWallet?.chainId, destinationWallet?.signer);
 
   const handleConnectSource = (chainId: SupportedChainId) => {
     connectSourceWallet(chainId);
@@ -64,7 +68,7 @@ export function WalletConnector({ wallets }: WalletConnectorProps) {
               <span className="font-semibold">Chain:</span> {getChainName(sourceWallet.chainId)}
             </p>
             <p>
-              <span className="font-semibold">USDC Amount:</span> {sourceWallet.usdcAmount}
+              <span className="font-semibold">USDC Amount:</span> {sourceBalance.isLoading ? "Loading..." : sourceBalance.usdcAmount}
             </p>
           </div>
         )}
@@ -94,7 +98,7 @@ export function WalletConnector({ wallets }: WalletConnectorProps) {
               <span className="font-semibold">Chain:</span> {getChainName(destinationWallet.chainId)}
             </p>
             <p>
-              <span className="font-semibold">USDC Amount:</span> {destinationWallet.usdcAmount}
+              <span className="font-semibold">USDC Amount:</span> {destinationBalance.isLoading ? "Loading..." : destinationBalance.usdcAmount}
             </p>
           </div>
         )}

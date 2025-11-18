@@ -1,39 +1,16 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { BrowserProvider, ethers, Signer } from "ethers";
+import { BrowserProvider, Signer } from "ethers";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CHAIN_IDS, isSupportedChain, SupportedChainId } from "../lib/configs";
-import { Erc20Abi__factory } from "../types/factories/Erc20Abi__factory";
-import { client } from "../lib/client";
+import { getIsFetchingBalance } from "./useUsdcBalance";
 
 export type WalletState = {
   address: string;
   chainId: SupportedChainId;
   signer: Signer;
-  usdcAmount: string;
-  usdcAddress: string;
 } | null;
-
-const fetchUsdcAddress = async (chainId: number): Promise<string> => {
-  const response = await client.api.usdcAddress.$get({
-    query: {
-      chainId: chainId.toString(),
-    },
-  });
-
-  const data = await response.json();
-  if (data.status !== "success" || !("data" in data)) {
-    throw new Error("Failed to fetch USDC address");
-  }
-  return data.data;
-};
-
-const fetchUsdcBalance = async (params: { usdcAddress: string; walletAddress: string; signer: Signer }): Promise<string> => {
-  const usdcContract = Erc20Abi__factory.connect(params.usdcAddress, params.signer);
-  const balance = await usdcContract.balanceOf(params.walletAddress);
-  return ethers.formatUnits(balance, 6);
-};
 
 export function useWallets() {
   const [sourceWallet, setSourceWallet] = useState<WalletState>(null);
@@ -93,17 +70,7 @@ export function useWallets() {
           const signer = await newProvider.getSigner();
           const address = await signer.getAddress();
 
-          const usdcAddress = await queryClient.fetchQuery({
-            queryKey: ["usdcAddress", params.expectedChainId],
-            queryFn: () => fetchUsdcAddress(params.expectedChainId!),
-          });
-
-          const usdcAmount = await queryClient.fetchQuery({
-            queryKey: ["usdcBalance", address, params.expectedChainId, usdcAddress],
-            queryFn: () => fetchUsdcBalance({ usdcAddress, walletAddress: address, signer }),
-          });
-
-          return { address, chainId: params.expectedChainId, signer, usdcAmount, usdcAddress };
+          return { address, chainId: params.expectedChainId, signer };
         }
 
         if (!isSupportedChain(currentChainId)) {
@@ -113,17 +80,7 @@ export function useWallets() {
         const signer = await provider.getSigner();
         const address = await signer.getAddress();
 
-        const usdcAddress = await queryClient.fetchQuery({
-          queryKey: ["usdcAddress", currentChainId],
-          queryFn: () => fetchUsdcAddress(currentChainId),
-        });
-
-        const usdcAmount = await queryClient.fetchQuery({
-          queryKey: ["usdcBalance", address, currentChainId, usdcAddress],
-          queryFn: () => fetchUsdcBalance({ usdcAddress, walletAddress: address, signer }),
-        });
-
-        return { address, chainId: currentChainId, signer, usdcAmount, usdcAddress };
+        return { address, chainId: currentChainId, signer };
       } catch (error) {
         console.error("Failed to connect wallet:", error);
         throw error;
@@ -193,17 +150,10 @@ export function useWallets() {
 
   const updateAccountMutation = useMutation({
     mutationFn: async (params: { chainId: number; address: string; signer: Signer }) => {
-      const usdcAddress = await queryClient.fetchQuery({
-        queryKey: ["usdcAddress", params.chainId],
-        queryFn: () => fetchUsdcAddress(params.chainId),
+      await queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "usdcBalance" || query.queryKey[0] === "usdcAddress",
       });
-
-      const usdcAmount = await queryClient.fetchQuery({
-        queryKey: ["usdcBalance", params.address, params.chainId, usdcAddress],
-        queryFn: () => fetchUsdcBalance({ usdcAddress, walletAddress: params.address, signer: params.signer }),
-      });
-
-      return { usdcAmount, usdcAddress };
+      return params;
     },
   });
 
@@ -249,9 +199,28 @@ export function useWallets() {
   useEffect(() => {
     if (!window.ethereum) return;
 
-    const handleChainChanged = () => {
-      if (isConnectingRef.current) return;
-      disconnectWallets();
+    const handleChainChanged = async () => {
+      if (isConnectingRef.current || getIsFetchingBalance()) return;
+
+      try {
+        const provider = new BrowserProvider(window.ethereum!);
+        const network = await provider.getNetwork();
+        const newChainId = Number(network.chainId);
+
+        if (!isSupportedChain(newChainId)) {
+          disconnectWallets();
+          return;
+        }
+
+        if (sourceWallet && destinationWallet) {
+          if (newChainId !== sourceWallet.chainId && newChainId !== destinationWallet.chainId) {
+            disconnectWallets();
+          }
+        }
+      } catch (error) {
+        console.error("Failed to handle chain change:", error);
+        disconnectWallets();
+      }
     };
 
     const handleAccountsChanged = async (accounts: unknown) => {
@@ -269,17 +238,17 @@ export function useWallets() {
         const network = await provider.getNetwork();
         const chainId = Number(network.chainId);
 
-        const result = await updateAccountMutation.mutateAsync({ chainId, address: newAddress, signer });
+        await updateAccountMutation.mutateAsync({ chainId, address: newAddress, signer });
 
         if (sourceWallet && isSupportedChain(chainId)) {
           if (chainId === sourceWallet.chainId) {
-            setSourceWallet({ address: newAddress, chainId, signer, usdcAmount: result.usdcAmount, usdcAddress: result.usdcAddress });
+            setSourceWallet({ address: newAddress, chainId, signer });
           }
         }
 
         if (destinationWallet && isSupportedChain(chainId)) {
           if (chainId === destinationWallet.chainId) {
-            setDestinationWallet({ address: newAddress, chainId, signer, usdcAmount: result.usdcAmount, usdcAddress: result.usdcAddress });
+            setDestinationWallet({ address: newAddress, chainId, signer });
           }
         }
       } catch (error) {
@@ -309,8 +278,6 @@ export function useWallets() {
     isConnecting,
     isActive,
     setIsActive,
-    sourceWalletError: connectSourceWalletMutation.error,
-    destinationWalletError: connectDestinationWalletMutation.error,
   };
 }
 
