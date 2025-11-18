@@ -186,8 +186,7 @@ GET /api/usdcAddress?chainId=1
 ```json
 {
   "status": "error",
-  "message": "USDC address not configured for chain 999",
-  "code": "UNKNOWN_ERROR"
+  "message": "USDC address not configured for chain 999"
 }
 ```
 
