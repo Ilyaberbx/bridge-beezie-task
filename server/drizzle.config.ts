@@ -5,7 +5,7 @@ import { config } from "dotenv";
 config();
 
 export default {
-  schema: "./src/schema/bridgingLogs.schema.ts",
+  schema: "./src/database/bridgingLogs.schema.ts",
   out: "./drizzle",
   dialect: "mysql",
   dbCredentials: {

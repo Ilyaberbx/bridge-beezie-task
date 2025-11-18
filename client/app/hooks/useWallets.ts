@@ -150,9 +150,8 @@ export function useWallets() {
 
   const updateAccountMutation = useMutation({
     mutationFn: async (params: { chainId: number; address: string; signer: Signer }) => {
-      await queryClient.invalidateQueries({
-        predicate: (query) => query.queryKey[0] === "usdcBalance" || query.queryKey[0] === "usdcAddress",
-      });
+      queryClient.invalidateQueries({ queryKey: ["usdcAddress"] });
+      queryClient.invalidateQueries({ queryKey: ["usdcBalance"] });
       return params;
     },
   });

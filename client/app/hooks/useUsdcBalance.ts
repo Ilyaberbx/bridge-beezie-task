@@ -65,6 +65,7 @@ export function useUsdcBalance(address: string | undefined, chainId: SupportedCh
     queryKey: ["usdcAddress", chainId],
     queryFn: () => fetchUsdcAddress(chainId!),
     enabled: !!chainId,
+    retry: 3,
     staleTime: Infinity,
   });
 
@@ -77,17 +78,15 @@ export function useUsdcBalance(address: string | undefined, chainId: SupportedCh
         chainId: chainId!,
         signer: signer!,
       }),
-    enabled: !!address && !!chainId && !!signer && !!usdcAddressQuery.data,
-    staleTime: 30000,
-    refetchOnMount: true,
+    enabled: !!address && !!chainId && !!usdcAddressQuery.data && !!signer,
     retry: 3,
+    staleTime: 0,
   });
 
   return {
     usdcAddress: usdcAddressQuery.data,
     usdcAmount: balanceQuery.data,
     isLoading: usdcAddressQuery.isLoading || balanceQuery.isLoading,
-    error: usdcAddressQuery.error || balanceQuery.error,
-    refetch: balanceQuery.refetch,
+    error: usdcAddressQuery.error || balanceQuery.error
   };
 }

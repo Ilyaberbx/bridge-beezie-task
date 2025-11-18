@@ -4,11 +4,11 @@ import { getChainName, CHAIN_IDS, getChainConfig, SupportedChainId } from "../co
 import type { UseWalletsReturn } from "../hooks/useWallets";
 import { useUsdcBalance } from "../hooks/useUsdcBalance";
 
-interface WalletConnectorProps {
+interface WalletsPairProps {
   wallets: UseWalletsReturn;
 }
 
-export function WalletConnector({ wallets }: WalletConnectorProps) {
+export function WalletsPair({ wallets }: WalletsPairProps) {
   const {
     sourceWallet,
     isConnecting,
@@ -79,6 +79,18 @@ export function WalletConnector({ wallets }: WalletConnectorProps) {
         )}
       </div>
 
+      {sourceWallet && destinationWallet && (
+        <div className="flex justify-center">
+          <button
+            onClick={swapWallets}
+            disabled={!isActive}
+            className="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-3 rounded-lg hover:from-green-700 hover:to-emerald-700 font-medium transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <img src="/swap-icon.svg" alt="Swap wallets" width="24" height="24" />
+          </button>
+        </div>
+      )}
+
       <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-100">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">Destination Wallet</h2>
         {!destinationWallet ? (
@@ -119,14 +131,7 @@ export function WalletConnector({ wallets }: WalletConnectorProps) {
       </div>
 
       {sourceWallet && destinationWallet && (
-        <div className="flex gap-4 justify-center">
-          <button
-            onClick={swapWallets}
-            disabled={!isActive}
-            className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 font-medium transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Swap Wallets
-          </button>
+        <div className="flex justify-center">
           <button
             onClick={disconnectWallets}
             disabled={!isActive}
