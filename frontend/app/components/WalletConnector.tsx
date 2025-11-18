@@ -17,6 +17,7 @@ export function WalletConnector({ wallets }: WalletConnectorProps) {
     swapWallets,
     disconnectWallets,
     getAvailableDestinationChainId,
+    isActive,
   } = wallets;
 
   const handleConnectSource = (chainId: SupportedChainId) => {
@@ -101,10 +102,10 @@ export function WalletConnector({ wallets }: WalletConnectorProps) {
 
       {sourceWallet && destinationWallet && (
         <div className="flex gap-4">
-          <button onClick={swapWallets} className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
+          <button onClick={swapWallets} disabled={!isActive} className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
             Swap Wallets
           </button>
-          <button onClick={disconnectWallets} className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700">
+          <button onClick={disconnectWallets} disabled={!isActive} className="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700">
             Disconnect All
           </button>
         </div>

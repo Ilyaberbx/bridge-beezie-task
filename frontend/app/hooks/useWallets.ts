@@ -39,6 +39,7 @@ export function useWallets() {
   const [sourceWallet, setSourceWallet] = useState<WalletState>(null);
   const [destinationWallet, setDestinationWallet] = useState<WalletState>(null);
   const isConnectingRef = useRef(false);
+  const [isActive, setIsActive] = useState(true);
   const queryClient = useQueryClient();
 
   const getOppositeChainId = (chainId: SupportedChainId): SupportedChainId => {
@@ -52,80 +53,105 @@ export function useWallets() {
       }
 
       const chainIdHex = `0x${chainId.toString(16)}`;
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: chainIdHex }],
-      });
+      try {
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: chainIdHex }],
+        });
+      } catch (error) {
+        console.error("Failed to switch chain:", error);
+        throw error;
+      }
+    },
+    onError: (error) => {
+      console.error("Chain switch error:", error);
     },
   });
 
   const connectWalletMutation = useMutation({
     mutationFn: async (params: { expectedChainId?: SupportedChainId }): Promise<WalletState> => {
-      if (!window.ethereum) {
-        throw new Error("MetaMask not installed");
-      }
+      try {
+        if (!window.ethereum) {
+          throw new Error("MetaMask not installed");
+        }
 
-      const accounts = (await window.ethereum.request({
-        method: "eth_requestAccounts",
-      })) as string[];
+        const accounts = (await window.ethereum.request({
+          method: "eth_requestAccounts",
+        })) as string[];
 
-      if (!accounts || accounts.length === 0) {
-        throw new Error("No accounts found");
-      }
+        if (!accounts || accounts.length === 0) {
+          throw new Error("No accounts found");
+        }
 
-      const provider = new BrowserProvider(window.ethereum);
-      const network = await provider.getNetwork();
-      const currentChainId = Number(network.chainId);
+        const provider = new BrowserProvider(window.ethereum);
+        const network = await provider.getNetwork();
+        const currentChainId = Number(network.chainId);
 
-      if (params.expectedChainId && currentChainId !== params.expectedChainId) {
-        await switchChainMutation.mutateAsync(params.expectedChainId);
-        const newProvider = new BrowserProvider(window.ethereum);
-        const signer = await newProvider.getSigner();
+        if (params.expectedChainId && currentChainId !== params.expectedChainId) {
+          await switchChainMutation.mutateAsync(params.expectedChainId);
+          const newProvider = new BrowserProvider(window.ethereum);
+          const signer = await newProvider.getSigner();
+          const address = await signer.getAddress();
+
+          const usdcAddress = await queryClient.fetchQuery({
+            queryKey: ["usdcAddress", params.expectedChainId],
+            queryFn: () => fetchUsdcAddress(params.expectedChainId!),
+          });
+
+          const usdcAmount = await queryClient.fetchQuery({
+            queryKey: ["usdcBalance", address, params.expectedChainId, usdcAddress],
+            queryFn: () => fetchUsdcBalance({ usdcAddress, walletAddress: address, signer }),
+          });
+
+          return { address, chainId: params.expectedChainId, signer, usdcAmount, usdcAddress };
+        }
+
+        if (!isSupportedChain(currentChainId)) {
+          throw new Error("Unsupported chain. Please switch to chain 545 or 84532");
+        }
+
+        const signer = await provider.getSigner();
         const address = await signer.getAddress();
 
         const usdcAddress = await queryClient.fetchQuery({
-          queryKey: ["usdcAddress", params.expectedChainId],
-          queryFn: () => fetchUsdcAddress(params.expectedChainId!),
+          queryKey: ["usdcAddress", currentChainId],
+          queryFn: () => fetchUsdcAddress(currentChainId),
         });
 
         const usdcAmount = await queryClient.fetchQuery({
-          queryKey: ["usdcBalance", address, params.expectedChainId, usdcAddress],
+          queryKey: ["usdcBalance", address, currentChainId, usdcAddress],
           queryFn: () => fetchUsdcBalance({ usdcAddress, walletAddress: address, signer }),
         });
 
-        return { address, chainId: params.expectedChainId, signer, usdcAmount, usdcAddress };
+        return { address, chainId: currentChainId, signer, usdcAmount, usdcAddress };
+      } catch (error) {
+        console.error("Failed to connect wallet:", error);
+        throw error;
       }
-
-      if (!isSupportedChain(currentChainId)) {
-        throw new Error("Unsupported chain. Please switch to chain 545 or 84532");
-      }
-
-      const signer = await provider.getSigner();
-      const address = await signer.getAddress();
-
-      const usdcAddress = await queryClient.fetchQuery({
-        queryKey: ["usdcAddress", currentChainId],
-        queryFn: () => fetchUsdcAddress(currentChainId),
-      });
-
-      const usdcAmount = await queryClient.fetchQuery({
-        queryKey: ["usdcBalance", address, currentChainId, usdcAddress],
-        queryFn: () => fetchUsdcBalance({ usdcAddress, walletAddress: address, signer }),
-      });
-
-      return { address, chainId: currentChainId, signer, usdcAmount, usdcAddress };
+    },
+    onError: (error) => {
+      console.error("Wallet connection error:", error);
     },
   });
 
   const connectSourceWalletMutation = useMutation({
     mutationFn: async (chainId: SupportedChainId) => {
       isConnectingRef.current = true;
-      const wallet = await connectWalletMutation.mutateAsync({ expectedChainId: chainId });
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      return wallet;
+      try {
+        const wallet = await connectWalletMutation.mutateAsync({ expectedChainId: chainId });
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        return wallet;
+      } catch (error) {
+        console.error("Failed to connect source wallet:", error);
+        throw error;
+      }
     },
     onSuccess: (wallet) => {
       setSourceWallet(wallet);
+    },
+    onError: (error) => {
+      console.error("Source wallet connection error:", error);
+      isConnectingRef.current = false;
     },
     onSettled: () => {
       isConnectingRef.current = false;
@@ -139,17 +165,26 @@ export function useWallets() {
       }
 
       isConnectingRef.current = true;
-      const requiredChainId = getOppositeChainId(sourceWallet.chainId);
-      const wallet = await connectWalletMutation.mutateAsync({ expectedChainId: requiredChainId });
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      try {
+        const requiredChainId = getOppositeChainId(sourceWallet.chainId);
+        const wallet = await connectWalletMutation.mutateAsync({ expectedChainId: requiredChainId });
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      await switchChainMutation.mutateAsync(sourceWallet.chainId);
-      await new Promise((resolve) => setTimeout(resolve, 500));
+        await switchChainMutation.mutateAsync(sourceWallet.chainId);
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
-      return wallet;
+        return wallet;
+      } catch (error) {
+        console.error("Failed to connect destination wallet:", error);
+        throw error;
+      }
     },
     onSuccess: (wallet) => {
       setDestinationWallet(wallet);
+    },
+    onError: (error) => {
+      console.error("Destination wallet connection error:", error);
+      isConnectingRef.current = false;
     },
     onSettled: () => {
       isConnectingRef.current = false;
@@ -272,6 +307,10 @@ export function useWallets() {
     disconnectWallets,
     getAvailableDestinationChainId,
     isConnecting,
+    isActive,
+    setIsActive,
+    sourceWalletError: connectSourceWalletMutation.error,
+    destinationWalletError: connectDestinationWalletMutation.error,
   };
 }
 

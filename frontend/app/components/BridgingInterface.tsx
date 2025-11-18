@@ -10,12 +10,14 @@ import { Erc20Abi__factory } from "../types/factories/Erc20Abi__factory";
 import { getChainConfig } from "../lib/configs";
 import { client } from "../lib/client";
 import { ethers } from "ethers";
-import { WalletState } from "../hooks/useWallets";
+import { UseWalletsReturn } from "../hooks/useWallets";
 import { useState } from "react";
 
 type FormFields = z.infer<ReturnType<typeof createBridgingSchema>>;
 
-export function BridgingInterface({ sourceWallet, destinationWallet }: { sourceWallet: WalletState | null; destinationWallet: WalletState | null }) {
+export function BridgingInterface({ wallets }: { wallets: UseWalletsReturn }) {
+  const { sourceWallet, destinationWallet, setIsActive } = wallets;
+
   const maxAmount = sourceWallet ? Number(sourceWallet.usdcAmount) : 0;
 
   const {
@@ -31,20 +33,23 @@ export function BridgingInterface({ sourceWallet, destinationWallet }: { sourceW
   const [openModal, setOpenModal] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
   const [modalTitle, setModalTitle] = useState("");
-  const onCloseModal = () => setOpenModal(false);
+  const onCloseModal = () => {
+    setOpenModal(false);
+    setIsActive(true);
+  };
 
   const currentAmount = watch("usdcAmount");
 
   if (!sourceWallet || !destinationWallet) {
     return <div>Connect your wallets first</div>;
   }
-
   const handleSliderChange = (value: number | number[]) => {
     const numericValue = Array.isArray(value) ? value[0] : value;
     setValue("usdcAmount", numericValue, { shouldValidate: true });
   };
 
   const onSubmit: SubmitHandler<FormFields> = async (data: FormFields) => {
+    setIsActive(false);
     const usdcAddress = sourceWallet.usdcAddress;
     const usdcContract = Erc20Abi__factory.connect(usdcAddress, sourceWallet.signer);
     const poolAddress = getChainConfig(sourceWallet.chainId).poolAddress;
